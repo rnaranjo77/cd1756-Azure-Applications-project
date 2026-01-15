@@ -1,3 +1,4 @@
+
 """
 The flask application package.
 """
@@ -8,26 +9,36 @@ from config import Config
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_session import Session
-from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Logging setup
+# ------------------------------------------
+# TODO COMPLETED: Add logging levels & handlers
+# ------------------------------------------
 app.logger.setLevel(logging.INFO)
-handler = RotatingFileHandler("app.log", maxBytes=1_000_000, backupCount=3)
-handler.setLevel(logging.INFO)
-formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
-handler.setFormatter(formatter)
-app.logger.addHandler(handler)
 
-# Trust proxy headers for HTTPS
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+# Rotating file handler (local container logs)
+file_handler = RotatingFileHandler(
+    "app.log", maxBytes=1_000_000, backupCount=3
+)
+file_handler.setLevel(logging.INFO)
+file_formatter = logging.Formatter(
+    "%(asctime)s %(levelname)s %(name)s %(message)s"
+)
+file_handler.setFormatter(file_formatter)
+app.logger.addHandler(file_handler)
+
+# Stream handler (needed for Azure Log Stream visibility)
+stream_handler = logging.StreamHandler()
+stream_handler.setLevel(logging.INFO)
+stream_handler.setFormatter(file_formatter)
+app.logger.addHandler(stream_handler)
+# ------------------------------------------
 
 Session(app)
 db = SQLAlchemy(app)
 login = LoginManager(app)
-login.login_view = 'login'  
+login.login_view = 'login'
 
-from FlaskWebProject import views  
-``
+import FlaskWebProject.views
