@@ -1,3 +1,4 @@
+
 """
 Routes and views for the flask application.
 """
@@ -13,7 +14,8 @@ from FlaskWebProject.models import User, Post
 import msal
 import uuid
 
-imageSourceUrl = 'https://'+ app.config['BLOB_ACCOUNT']  + '.blob.core.windows.net/' + app.config['BLOB_CONTAINER']  + '/'
+# Build image source URL from config
+imageSourceUrl = 'https://' + app.config['BLOB_ACCOUNT'] + '.blob.core.windows.net/' + app.config['BLOB_CONTAINER'] + '/'
 
 @app.route('/')
 @app.route('/home')
@@ -21,11 +23,7 @@ imageSourceUrl = 'https://'+ app.config['BLOB_ACCOUNT']  + '.blob.core.windows.n
 def home():
     user = User.query.filter_by(username=current_user.username).first_or_404()
     posts = Post.query.all()
-    return render_template(
-        'index.html',
-        title='Home Page',
-        posts=posts
-    )
+    return render_template('index.html', title='Home Page', posts=posts)
 
 @app.route('/new_post', methods=['GET', 'POST'])
 @login_required
@@ -35,15 +33,9 @@ def new_post():
         post = Post()
         post.save_changes(form, request.files['image_path'], current_user.id, new=True)
         return redirect(url_for('home'))
-    return render_template(
-        'post.html',
-        title='Create Post',
-        imageSource=imageSourceUrl,
-        form=form
-    )
+    return render_template('post.html', title='Create Post', imageSource=imageSourceUrl, form=form)
 
-
-@app.route('/post/<int:id>', methods=['GET', 'POST'])
+@app.route('/post/<int:id>', methods=['GET', 'POST'])  # Fixed HTML escape
 @login_required
 def post(id):
     post = Post.query.get(int(id))
@@ -51,12 +43,7 @@ def post(id):
     if form.validate_on_submit():
         post.save_changes(form, request.files['image_path'], current_user.id)
         return redirect(url_for('home'))
-    return render_template(
-        'post.html',
-        title='Edit Post',
-        imageSource=imageSourceUrl,
-        form=form
-    )
+    return render_template('post.html', title='Edit Post', imageSource=imageSourceUrl, form=form)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -77,52 +64,64 @@ def login():
     auth_url = _build_auth_url(scopes=Config.SCOPE, state=session["state"])
     return render_template('login.html', title='Sign In', form=form, auth_url=auth_url)
 
-@app.route(Config.REDIRECT_PATH)  # Its absolute URL must match your app's redirect_uri set in AAD
+@app.route(Config.REDIRECT_PATH)  # Must match redirect URI in Azure AD
 def authorized():
     if request.args.get('state') != session.get("state"):
-        return redirect(url_for("home"))  # No-OP. Goes back to Index page
-    if "error" in request.args:  # Authentication/Authorization failure
+        return redirect(url_for("home"))
+    if "error" in request.args:
         return render_template("auth_error.html", result=request.args)
     if request.args.get('code'):
         cache = _load_cache()
-        # TODO: Acquire a token from a built msal app, along with the appropriate redirect URI
-        result = None
-        if "error" in result:
-            return render_template("auth_error.html", result=result)
+        result = _build_msal_app(cache=cache).acquire_token_by_authorization_code(
+            request.args.get('code'),
+            scopes=Config.SCOPE,
+            redirect_uri=url_for("authorized", _external=True, _scheme="https"),
+        )
+        if not isinstance(result, dict) or "error" in result:
+            return render_template("auth_error.html", result=result if isinstance(result, dict) else {"error": "unknown"})
         session["user"] = result.get("id_token_claims")
-        # Note: In a real app, we'd use the 'name' property from session["user"] below
-        # Here, we'll use the admin username for anyone who is authenticated by MS
+        # Log in as admin user after MS sign-in
         user = User.query.filter_by(username="admin").first()
-        login_user(user)
+        if user:
+            login_user(user)
         _save_cache(cache)
     return redirect(url_for('home'))
 
 @app.route('/logout')
 def logout():
     logout_user()
-    if session.get("user"): # Used MS Login
-        # Wipe out user and its token cache from session
+    if session.get("user"):  # Used MS Login
         session.clear()
-        # Also logout from your tenant's web session
         return redirect(
             Config.AUTHORITY + "/oauth2/v2.0/logout" +
-            "?post_logout_redirect_uri=" + url_for("login", _external=True))
-
+            "?post_logout_redirect_uri=" + url_for("login", _external=True)
+        )
     return redirect(url_for('login'))
 
 def _load_cache():
-    # TODO: Load the cache from `msal`, if it exists
-    cache = None
+    cache = msal.SerializableTokenCache()
+    if session.get("token_cache"):
+        cache.deserialize(session["token_cache"])
     return cache
 
 def _save_cache(cache):
-    # TODO: Save the cache, if it has changed
-    pass
+    if cache and cache.has_state_changed:
+        session["token_cache"] = cache.serialize()
 
 def _build_msal_app(cache=None, authority=None):
-    # TODO: Return a ConfidentialClientApplication
-    return None
+    return msal.ConfidentialClientApplication(
+        app.config["CLIENT_ID"],
+        authority=authority or app.config["AUTHORITY"],
+        client_credential=app.config["CLIENT_SECRET"],
+        token_cache=cache,
+    )
 
 def _build_auth_url(authority=None, scopes=None, state=None):
-    # TODO: Return the full Auth Request URL with appropriate Redirect URI
-    return None
+    return _build_msal_app(authority=authority).get_authorization_request_url(
+        scopes or [],
+        state=state or str(uuid.uuid4()),
+        redirect_uri=url_for("authorized", _external=True, _scheme="https"),
+    )
+
+
+
