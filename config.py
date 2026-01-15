@@ -39,4 +39,15 @@ class Config(object):
     # https://docs.microsoft.com/en-us/graph/permissions-reference
     SCOPE = ["User.Read"] # Only need to read user profile for this app
 
-    SESSION_TYPE = "filesystem"  # Token cache will be stored in server-side session
+    
+    ### Flask-Session
+    SESSION_TYPE = "filesystem"
+    SESSION_FILE_DIR = "/home/site/wwwroot/.flask_session"
+
+    ### HTTPS enforcement for Azure App Service + ProxyFix
+    PREFERRED_URL_SCHEME = "https"
+    SESSION_COOKIE_SECURE = True
+    REMEMBER_COOKIE_SECURE = True
+
+
+    #SESSION_TYPE = "filesystem"  # Token cache will be stored in server-side session
