@@ -15,14 +15,10 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# --- REQUIRED DIRECTORY FIXES (prevents 500 errors on Azure) ---
-# Create session dir if using SESSION_TYPE=filesystem
+# Create session directory (required for flask-session)
 os.makedirs(app.config.get("SESSION_FILE_DIR", "/home/site/wwwroot/.flask_session"), exist_ok=True)
 
-# Create DB dir if using sqlite on Azure
-os.makedirs("/home/site/db", exist_ok=True)
-
-# --- PROXYFIX (must be after app creation/config load) ---
+# Enable HTTPS reconstruction behind Azure front door
 app.wsgi_app = ProxyFix(
     app.wsgi_app,
     x_for=1,
@@ -32,18 +28,10 @@ app.wsgi_app = ProxyFix(
     x_prefix=1
 )
 
-# ------------------------------------------
-# LOGGING
-# ------------------------------------------
+# Logging setup
 app.logger.setLevel(logging.INFO)
-
-file_handler = RotatingFileHandler(
-    "app.log", maxBytes=1_000_000, backupCount=3
-)
-file_handler.setLevel(logging.INFO)
-file_formatter = logging.Formatter(
-    "%(asctime)s %(levelname)s %(name)s %(message)s"
-)
+file_handler = RotatingFileHandler("app.log", maxBytes=1_000_000, backupCount=3)
+file_formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
 file_handler.setFormatter(file_formatter)
 app.logger.addHandler(file_handler)
 
@@ -52,13 +40,10 @@ stream_handler.setLevel(logging.INFO)
 stream_handler.setFormatter(file_formatter)
 app.logger.addHandler(stream_handler)
 
-# ------------------------------------------
-# EXTENSIONS
-# ------------------------------------------
 Session(app)
 db = SQLAlchemy(app)
 login = LoginManager(app)
 login.login_view = 'login'
 
-# Important: import views last
 import FlaskWebProject.views
+
