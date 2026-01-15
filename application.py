@@ -6,13 +6,9 @@ from os import environ
 from FlaskWebProject import app
 
 if __name__ == '__main__':
-    # Azure provides PORT; fallback to 5555 for local dev
-    PORT = int(environ.get("PORT", 5555))
-
-    # MUST bind to 0.0.0.0 on Azure
-    HOST = "0.0.0.0"
-
-    # Do NOT use ssl_context on Azure (TLS is terminated by App Service)
-    app.run(host=HOST, port=PORT)
-``
-
+    HOST = environ.get('SERVER_HOST', 'localhost')
+    try:
+        PORT = int(environ.get('SERVER_PORT', '5555'))
+    except ValueError:
+        PORT = 5555
+    app.run(HOST, PORT, ssl_context='adhoc')
