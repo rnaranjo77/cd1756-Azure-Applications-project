@@ -1,3 +1,4 @@
+
 """
 Routes and views for the flask application.
 """
@@ -43,7 +44,7 @@ def new_post():
     )
 
 
-@app.route('/post/<int:id>', methods=['GET', 'POST'])
+@app.route('/post/&lt;int:id&gt;', methods=['GET', 'POST'])
 @login_required
 def post(id):
     post = Post.query.get(int(id))
@@ -86,7 +87,11 @@ def authorized():
     if request.args.get('code'):
         cache = _load_cache()
         # TODO: Acquire a token from a built msal app, along with the appropriate redirect URI
-        result = None
+        result = _build_msal_app(cache=cache).acquire_token_by_authorization_code(
+            request.args['code'],
+            scopes=Config.SCOPE,
+            redirect_uri=url_for("authorized", _external=True)
+        )
         if "error" in result:
             return render_template("auth_error.html", result=result)
         session["user"] = result.get("id_token_claims")
@@ -117,29 +122,26 @@ def _load_cache():
         cache.deserialize(session["token_cache"])
     return cache
 
-
 def _save_cache(cache):
     # TODO: Save the cache, if it has changed
     if cache and cache.has_state_changed:
-        session["token_cache"] = cache.serial
-
+        session["token_cache"] = cache.serialize()
 
 def _build_msal_app(cache=None, authority=None):
     # TODO: Return a ConfidentialClientApplication
     return msal.ConfidentialClientApplication(
-        client_id=app.config["CLIENT_ID"],
-        authority=authority or app.config["AUTHORITY"],
-        client_credential=app.config["CLIENT_SECRET"],
-        token_cache=cache,
+        Config.CLIENT_ID,
+        authority=authority or Config.AUTHORITY,
+        client_credential=Config.CLIENT_SECRET,
+        token_cache=cache
     )
-
 
 def _build_auth_url(authority=None, scopes=None, state=None):
     # TODO: Return the full Auth Request URL with appropriate Redirect URI
     return _build_msal_app(authority=authority).get_authorization_request_url(
-        scopes or [],
-        state=state or str(uuid.uuid4()),
-        redirect_uri=url_for("authorized", _external=True),
+        scopes=scopes or Config.SCOPE,
+        state=state,
+        redirect_uri=url_for("authorized", _external=True)
     )
 
 
