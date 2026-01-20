@@ -14,14 +14,18 @@ class Config(object):
     SQL_USER_NAME = os.environ.get('SQL_USER_NAME') or 'ENTER_SQL_SERVER_USERNAME'
     SQL_PASSWORD = os.environ.get('SQL_PASSWORD') or 'ENTER_SQL_SERVER_PASSWORD'
     # Below URI may need some adjustments for driver version, based on your OS, if running locally
-    #SQLALCHEMY_DATABASE_URI = 'mssql+pyodbc://' + SQL_USER_NAME + '@' + SQL_SERVER + ':' + SQL_PASSWORD + '@' + SQL_SERVER + ':1433/' + SQL_DATABASE  + '?driver=ODBC+Driver+17+for+SQL+Server'
-    
-    SQLALCHEMY_DATABASE_URI = os.environ.get("SQLALCHEMY_DATABASE_URI") or "mssql+pyodbc://cmsadmin:CMS4dmin@cmsetbg.database.windows.net:1433/cmsetbg?driver=ODBC+Driver+18+for+SQL+Server"
+    SQLALCHEMY_DATABASE_URI = (
+        'mssql+pyodbc://' +
+        SQL_USER_NAME + ':' + SQL_PASSWORD + '@' +
+        SQL_SERVER + ':1433/' + SQL_DATABASE +
+        '?driver=ODBC+Driver+18+for+SQL+Server'
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
 
     ### Info for MS Authentication ###
     ### As adapted from: https://github.com/Azure-Samples/ms-identity-python-webapp ###
-    CLIENT_SECRET = "k3Y8Q~b2EL7btNcM04S0ewoGJWOo9V3Vb-QSUaOu"
+    CLIENT_SECRET = os.environ.get("CLIENT_SECRET") or "k3Y8Q~b2EL7btNcM04S0ewoGJWOo9V3Vb-QSUaOu"
     # In your production app, Microsoft recommends you to use other ways to store your secret,
     # such as KeyVault, or environment variable as described in Flask's documentation here:
     # https://flask.palletsprojects.com/en/1.1.x/config/#configuring-from-environment-variables
@@ -32,23 +36,12 @@ class Config(object):
     AUTHORITY = "https://login.microsoftonline.com/common"  # For multi-tenant app, else put tenant name
     # AUTHORITY = "https://login.microsoftonline.com/Enter_the_Tenant_Name_Here"
 
-    CLIENT_ID = "475537ab-f715-498f-a051-b9e83f0a5a6d"
+    CLIENT_ID = os.environ.get("CLIENT_ID") or "475537ab-f715-498f-a051-b9e83f0a5a6d"
 
     REDIRECT_PATH = "/getAToken"  # Used to form an absolute URL; must match to app's redirect_uri set in AAD
 
     # You can find the proper permission names from this document
     # https://docs.microsoft.com/en-us/graph/permissions-reference
     SCOPE = ["User.Read"] # Only need to read user profile for this app
-
     
-    ### Flask-Session
-    SESSION_TYPE = "filesystem"
-    SESSION_FILE_DIR = "/home/site/wwwroot/.flask_session"
-
-    ### HTTPS enforcement for Azure App Service + ProxyFix
-    PREFERRED_URL_SCHEME = "https"
-    SESSION_COOKIE_SECURE = True
-    REMEMBER_COOKIE_SECURE = True
-
-
-    #SESSION_TYPE = "filesystem"  # Token cache will be stored in server-side session
+    SESSION_TYPE = "filesystem"  # Token cache will be stored in server-side session
