@@ -30,7 +30,6 @@ jobs:
         run: |
           python -m venv antenv
           source antenv/bin/activate
-          pip install --upgrade pip wheel setuptools requests
           pip install -r requirements.txt
                 
       # By default, when you enable GitHub CI/CD integration through the Azure portal, the platform automatically sets the SCM_DO_BUILD_DURING_DEPLOYMENT application setting to true. This triggers the use of Oryx, a build engine that handles application compilation and dependency installation (e.g., pip install) directly on the platform during deployment. Hence, we exclude the antenv virtual environment directory from the deployment artifact to reduce the payload size. 
@@ -64,9 +63,9 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_4A0FBE5869844F268FFE36E1593A8239 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_04956C6584D74451BD72C4CE51C06D46 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_36697B0C81B4408782227A32E59DC50E }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_580B54E017A041EBAA157315ED5C29F3 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_6D93B542ADD54FFBB5F356FADADA60F8 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_116D38CC89BD4DCF8E78EFFAB04A878B }}
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
@@ -74,5 +73,4 @@ jobs:
         with:
           app-name: 'udacitycmsetbg'
           slot-name: 'Production'
-
           
