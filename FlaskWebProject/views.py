@@ -19,6 +19,7 @@ imageSourceUrl = (
     '.blob.core.windows.net/' + app.config['BLOB_CONTAINER'] + '/'
 )
 
+
 @app.route('/')
 @app.route('/home')
 @login_required
@@ -30,6 +31,7 @@ def home():
         title='Home Page',
         posts=posts
     )
+
 
 @app.route('/new_post', methods=['GET', 'POST'])
 @login_required
@@ -46,6 +48,7 @@ def new_post():
         imageSource=imageSourceUrl,
         form=form
     )
+
 
 @app.route('/post/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -64,6 +67,7 @@ def post(id):
         form=form
     )
 
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -73,11 +77,24 @@ def login():
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
 
+        # ---- FAILED LOGIN LOG ----
         if user is None or not user.check_password(form.password.data):
+            app.logger.warning(
+                "Failed login attempt | username=%s | ip=%s",
+                form.username.data,
+                request.remote_addr
+            )
             flash('Invalid username or password')
             return redirect(url_for('login'))
 
         login_user(user, remember=form.remember_me.data)
+
+        # ---- SUCCESSFUL LOGIN LOG ----
+        app.logger.info(
+            "Successful login | username=%s | ip=%s",
+            user.username,
+            request.remote_addr
+        )
 
         next_page = request.args.get('next')
         if not next_page or url_parse(next_page).netloc != '':
@@ -89,6 +106,7 @@ def login():
     session["state"] = str(uuid.uuid4())
     auth_url = _build_auth_url(scopes=Config.SCOPE, state=session["state"])
     return render_template('login.html', title='Sign In', form=form, auth_url=auth_url)
+
 
 @app.route(Config.REDIRECT_PATH)
 def authorized():
@@ -112,20 +130,38 @@ def authorized():
 
         session["user"] = result.get("id_token_claims")
 
-        # Always logs in as admin (original logic)
+        # Always logs in as admin
         user = User.query.filter_by(username="admin").first()
         if not user:
+            app.logger.error(
+                "MSAL login failed | admin user not found | ip=%s",
+                request.remote_addr
+            )
             flash("Admin user not found")
             return redirect(url_for("login"))
 
         login_user(user)
 
+        # ---- SUCCESSFUL MSAL LOGIN LOG ----
+        app.logger.info(
+            "Successful MSAL login | logged_in_as=%s | ip=%s",
+            user.username,
+            request.remote_addr
+        )
+
         _save_cache(cache)
 
     return redirect(url_for('home'))
 
+
 @app.route('/logout')
 def logout():
+    app.logger.info(
+        "User logged out | username=%s | ip=%s",
+        current_user.get_id(),
+        request.remote_addr
+    )
+
     logout_user()
 
     if session.get("user"):
@@ -146,9 +182,11 @@ def _load_cache():
         cache.deserialize(session["token_cache"])
     return cache
 
+
 def _save_cache(cache):
     if cache and cache.has_state_changed:
         session["token_cache"] = cache.serialize()
+
 
 def _build_msal_app(cache=None, authority=None):
     return msal.ConfidentialClientApplication(
@@ -158,12 +196,14 @@ def _build_msal_app(cache=None, authority=None):
         token_cache=cache
     )
 
+
 def _build_auth_url(authority=None, scopes=None, state=None):
     return _build_msal_app(authority=authority).get_authorization_request_url(
         scopes=scopes or Config.SCOPE,
         state=state,
         redirect_uri=url_for("authorized", _external=True)
     )
+
 
 
 
