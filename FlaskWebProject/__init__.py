@@ -5,9 +5,24 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from config import Config
+from flask import request, redirect
 
 app = Flask(__name__)
+
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+app.wsgi_app = ProxyFix(
+    app.wsgi_app,
+    x_proto=1,
+    x_host=1
+)
+
 app.config.from_object(Config)
+
+@app.before_request
+def enforce_https():
+    if not request.is_secure and not app.debug:
+        return redirect(request.url.replace("http://", "https://"), code=301)
 
 db = SQLAlchemy(app)
 
