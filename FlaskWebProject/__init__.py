@@ -21,8 +21,10 @@ app.config.from_object(Config)
 
 @app.before_request
 def enforce_https():
-    if not request.is_secure and not app.debug:
+    # Trust Azure's X-Forwarded-Proto header
+    if request.headers.get('X-Forwarded-Proto', 'http') != 'https' and not app.debug:
         return redirect(request.url.replace("http://", "https://"), code=301)
+
 
 db = SQLAlchemy(app)
 
