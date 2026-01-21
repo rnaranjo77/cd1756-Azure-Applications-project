@@ -43,3 +43,6 @@ class Config(object):
     SCOPE = ["User.Read"] # Only need to read user profile for this app
     
     SESSION_TYPE = "filesystem"  # Token cache will be stored in server-side session
+
+    PREFERRED_URL_SCHEME = 'https'
+
