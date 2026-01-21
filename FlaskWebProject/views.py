@@ -114,6 +114,10 @@ def authorized():
 
         # Always logs in as admin (original logic)
         user = User.query.filter_by(username="admin").first()
+        if not user:
+            flash("Admin user not found")
+            return redirect(url_for("login"))
+
         login_user(user)
 
         _save_cache(cache)
